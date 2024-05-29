@@ -1,0 +1,90 @@
+function myFunction(evento) {
+  var ID_plantillaDOC = "1Av9UrmIZAxw1Nkm61u2jzgfu8Y8lwbrKaj2b-dfBUAc";
+  const ID_carpetaDrive = "1WZyaktMIjEu_zuzru6QeTudabdsnNQAL";
+  
+  function toPDF(doc) {
+    var blob = doc.getAs("application/pdf");
+    Utilities.sleep(3000);  // Espera 3 segundos
+    return blob;
+  }
+
+  function replaceTextInBody(body, searchText, replaceText) {
+    var foundElement = null;
+    while (foundElement = body.findText(searchText, foundElement)) {
+      var foundText = foundElement.getElement().asText();
+      foundText.setText(foundText.getText().replace(searchText, replaceText));
+    }
+  }
+
+  function getDateString() {
+    var today = new Date();
+    var year = today.getFullYear();
+    var month = today.getMonth() + 1;
+    var day = today.getDate();
+
+    // Formateamos la fecha como "DD/MM/YYYY"
+    var dateString = pad(day, 2) + '/' + pad(month, 2) + '/' + year;                                 //5
+
+    return dateString;
+  }
+
+  function pad(num, size) {
+    var s = num + "";
+    while (s.length < size) s = "0" + s;
+    return s;
+  }
+
+  var respuestas = evento.namedValues;
+
+  var fecha_diagnostico = getDateString();
+  var nombre_cliente = respuestas['nombre_cliente'] ? respuestas['nombre_cliente'][0] : "";
+  var fecha_Ingreso = respuestas['fecha_Ingreso'] ? respuestas['fecha_Ingreso'][0] : "";
+  var serial_numero = respuestas['serial_numero'] ? respuestas['serial_numero'][0] : "";
+  var equipo_revisar = respuestas['equipo_revisar'] ? respuestas['equipo_revisar'][0] : "";
+  var hallazgos = respuestas['hallazgos'] ? respuestas['hallazgos'][0] : "";
+  var analisis = respuestas['analisis'] ? respuestas['analisis'][0] : "";
+  var conclusiones = respuestas['conclusiones'] ? respuestas['conclusiones'][0] : "";
+  var correo = respuestas['correo'] ? respuestas['correo'][0] : "";
+
+  var carpeta = DriveApp.getFolderById(ID_carpetaDrive);
+  var archivoPlantilla = DriveApp.getFileById(ID_plantillaDOC);
+  var copiaArchivo = archivoPlantilla.makeCopy();
+  Utilities.sleep(3000);  // Espera 3 segundos
+  var idArchivocopia = copiaArchivo.getId();
+
+  Logger.log("el Id del archivo copia creado es: " + idArchivocopia);
+
+  var docNew = DocumentApp.openById(idArchivocopia);  // Abre la copia del archivo
+  var body = docNew.getBody();
+
+  // Reemplazar el texto en el cuerpo del documento
+  Logger.log("Texto del documento antes del reemplazo: " + body.getText());
+  body.replaceText("{{nombre_cliente}}", nombre_cliente);
+  body.replaceText("{{fecha_diagnostico}}", fecha_diagnostico);
+  body.replaceText("{{fecha_diagnostico_1}}", fecha_diagnostico.replace(/\//g, ""));
+  body.replaceText("{{fecha_Ingreso}}", fecha_Ingreso);
+  body.replaceText("{{serial_numero}}", serial_numero);
+  body.replaceText("{{equipo_revisar}}", equipo_revisar);
+  body.replaceText("{{hallazgos}}", hallazgos);
+  body.replaceText("{{analisis}}", analisis);
+  body.replaceText("{{conclusiones}}", conclusiones);
+  body.replaceText("{{correo}}", correo);
+  Logger.log("Texto del documento después del reemplazo: " + body.getText());
+
+  // Guardar el documento de Google Docs
+  docNew.saveAndClose();
+  Utilities.sleep(3000);  // Espera 3 segundos
+
+  // Convertimos el documento copiado a PDF
+  var pdf = toPDF(docNew);
+
+  // Guardamos el documento PDF con el nombre personalizado
+  var nombreArchivo = serial_numero + fecha_diagnostico.replace(/\//g, "") + ".pdf";
+  carpeta.createFile(pdf.setName(nombreArchivo));
+
+  // Agregamos un delay (retraso) para asegurar que el PDF se haya generado correctamente
+  Utilities.sleep(8000);  // Espera 8 segundos
+
+  // Eliminamos la copia del archivo
+  DriveApp.getFileById(idArchivocopia).setTrashed(true);
+}
